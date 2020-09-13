@@ -89,9 +89,9 @@ class Undistorter():
         if self.last_shape != img_shape:
             self.last_shape = img_shape
             h, w = self.last_shape[:2]
-            self.newcameramtx, self.roi = cv2.getOptimalNewCameraMatrix(
-                self.mtx, self.dist, (w,h), 1, (w,h))
-        undistorted = cv2.undistort(img, self.mtx, self.dist, None, self.newcameramtx)
-        cropped = self.crop(undistorted)
-        return cropped
+            #self.newcameramtx, self.roi = cv2.getOptimalNewCameraMatrix(
+            #    self.mtx, self.dist, (w,h), 1, (w,h))
+        undistorted = cv2.undistort(img, self.mtx, self.dist)#, None, self.newcameramtx)
+        #cropped = self.crop(undistorted)
+        return undistorted
 
