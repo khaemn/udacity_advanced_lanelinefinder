@@ -40,7 +40,7 @@ class CameraCalibrator:
         self.objpoints.append(self.objp_template)
         self.imgpoints.append(corners)
 
-    def calibrate(self, folder_path):
+    def calibrate(self, folder_path=CALIBRATION_IMG_PATH):
         search_pattern = path.join(folder_path, self.img_type)
         print('Searching for calibration images at ', search_pattern)
         filenames = glob.glob(path.join(folder_path, self.img_type))
@@ -84,12 +84,11 @@ class Undistorter():
     def undistort(self, img):
         """ Expects a grayscale image as input """
         img_shape = img.shape
-        assert(len(img_shape) == 2)
         # Re-initing output ROI and transform matrix each time we
         # get an image with a different shape.
         if self.last_shape != img_shape:
             self.last_shape = img_shape
-            w, h = self.last_shape[::-1]
+            h, w = self.last_shape[:2]
             self.newcameramtx, self.roi = cv2.getOptimalNewCameraMatrix(
                 self.mtx, self.dist, (w,h), 1, (w,h))
         undistorted = cv2.undistort(img, self.mtx, self.dist, None, self.newcameramtx)
