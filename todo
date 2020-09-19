@@ -1,0 +1,121 @@
+#include <experimental/mdspan>
+
+тоже. когда я говорил, что он не поддерживает паддинг, я ошибался.
+у него layout mapping это extension point и может вообще быть любым,
+но все что нам нужно, включая паддинг и страйд != 1 идет из коробки.
+он покрывает все фичи тензорфлоу тензора, которые приходят мне в
+голову, кроме того, что ранк не может быть динамическим, т.е. если
+нам нужен совсем рантайм полиморфик тензор, то надо ограничить макс
+ранк, прямо как в лимпроксимат был макрос макс_димс 5. все
+остальное он делает лучше, чем тензорфлоу + айген тензоры(он
+поддерживает произвольное количество измерений, каждое из которых
+может быть статическим или динамическим(но число измерений, т.е.
+ранк - статическое)), за исключением того, что он не владеет памятью,
+т.е. владелец должен быть отдельный(но владением озабочен код
+только где-то очень высоко в стеке). ну и такие мелочи, как он
+написан людьми, которые знают с++ лучше, чем ковбои из гугла и
+прошел несколько раундов дизайн ревью в комитете
+
+
+- Project 2 Advanced find lanelines
+
+
+PREREQS:
+
+a. each step in the pipeline must be videoable, to debug the things.
+    probably also save each Nth frame pair for input/output
+    
+b. it must work fast enough
+
+c. ROI is adjustable (for example, by args of the pipeline itself), also pix_to_mm rate adjuse
+
+
+PIPELINE:
+
+0. Measure the camera distortion and save the matrix.
+
+1. convert to HLS, combine Hue (0.170) * 2 // 3 and Sat channels (0.255) // 2
+    that actually gives very cool result, 247.5, when summing.
+
+2. tograyscale, undistort and (gaussian!) blur (blur AFTER distort! I think.)
+
+3. Find pixels of a "correct" egde angle:
+    sobelx, sobely,
+    given slope range
+    return thresholded by the angle
+    
+4. perspective warp == croptoselection
+
+5. possibly erode/dilate to fight small noise, crop
+
+6. sliding window lane finding OR goto [      ] if lines are in place already.
+
+7. fit polys to the dots
+
+8. measure curvature, crop by possible range. Store valid to a BF
+
+9. measure distance to the center. store valid to a BF
+
+10. draw lane curves and the polygon on an image,
+    warp it back to the input img
+    
+11. display output with the thing below.
+
+real pipeline:
+0. calibrate
+
+1. undistort
+2. take image fromabove
+3. amplify contrast
+    * take downsampled image
+
+
+
+todo:
+
+++ push the workspace to my github
+++ clone the proj locally
+++ inspect challenging things (they are REALLY challenging, actually. Are they even solvable using the classic CV?)
+++ extract the calib part to a file
+++ repush
+++ make the blurring
+++ make the sobeling to an angle
+++ warp transform (howto? m.b. use the Hough lines rly? )
+++ sliding window, draw 
+++ and curvature
+[?] can I bayes the image? (I guess I can)
+    yes.
+    
+    [!] A good idea is to visualize the slope threholds I use on the image
+    [!] and also use the changing slope threshols up.
+        let's say, on the 10% bottom image lanes must be 40..50 degree always.
+
+YES, bayesian filtering of the actual lane pixel image works miracles in the poor light conditions.
+
+++ adaptive contrast improvements do not improve, actually.
+    so fuck them.
+    but may be they vse-taki do, I just need to workaround zero pixels-fit problem.
+    
+++ try also applying all the steps to the birdseye.
+    it helped a lot actually
+    
+++ impl the point search in the curves.
+    (diff threshold?)
+++ implement only a bottom half of the image processing + downsample it to half-size at all.
+    and test the speed.
+    
+++ fix crash on the video because of NAJOR is computed wrong.
+
+-_ make pixel taking from the image without sliding windows IS the lane is valid.
+    http://collabedit.com/bt2j2
+-_ process all test images and place into the folder
+
+
+
+http://collabedit.com/bt2j2
+
+
+
+- camera calibration post at 
+    https://opencv-python-tutroals.readthedocs.io/en/latest/py_tutorials/py_calib3d/py_calibration/py_calibration.html
+    mentions some 'optimal ROI' -- what is it?
