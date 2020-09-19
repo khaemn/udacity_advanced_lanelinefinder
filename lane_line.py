@@ -12,6 +12,15 @@ class LaneLine():
     def __init__(self, xm_per_pix, ym_per_pix, img_size=(1280, 720), avg_depth=8,
                  max_broken_frames=15, max_valid_diff=2.0, name="Unnamed"):
         self.avg_depth = avg_depth
+        self.xm_per_pix = xm_per_pix
+        self.ym_per_pix = ym_per_pix
+        self.img_width, self.img_height = img_size
+        self.max_broken_frames = max_broken_frames
+        self.name = name
+        self.max_valid_diff = max_valid_diff
+        self.reset()
+        
+    def reset(self):
         # Poly coefficients. averaged during last N calls
         self.avg_fit = None
         self.isValid = False
@@ -20,16 +29,10 @@ class LaneLine():
         # Distance in meters of vehicle center from the line
         # (assuming the car is centered and the lane width is 3.75 meters)
         self.line_base_pos_mm = 3750./2
-        self.xm_per_pix = xm_per_pix
-        self.ym_per_pix = ym_per_pix
-        self.img_width, self.img_height = img_size
         self.lane_h_center_mm = (self.img_width // 2) * self.xm_per_pix * 1000.
-        self.max_broken_frames = max_broken_frames
         self.broken_frames = 0
-        self.name = name
-        self.max_valid_diff = max_valid_diff
         self.curve = np.uint8([[0,0]])
-    
+
     def update(self, poly, x_pixels=None, y_pixels=None):
         if x_pixels is not None:
             self.x_pixels = x_pixels
@@ -56,6 +59,8 @@ class LaneLine():
                 self.avg_fit = (self.avg_fit * (self.avg_depth - 1) + poly) / self.avg_depth
                 self.isValid = True
                 self.broken_frames = 0
+            new_curvature = self.curvature(self.avg_fit, self.img_height * self.ym_per_pix)
+            self.radius_m = (self.radius_m * (self.avg_depth - 1) + new_curvature) / self.avg_depth
             self.line_base_pos_mm = self.evaluate_poly2(
                 self.avg_fit, self.img_height * self.ym_per_pix)*1000 - self.lane_h_center_mm
             
@@ -84,22 +89,10 @@ class LaneLine():
         return numerator / denominator
     
     def get_radius(self):
-        new_curvature = self.curvature(self.avg_fit, self.img_height * self.ym_per_pix)
-        self.radius_m = (self.radius_m * (self.avg_depth - 1) + new_curvature) / self.avg_depth
         return self.radius_m
     
     def get_horizontal_offset(self):
         return self.line_base_pos_mm
-    
-    def reset(self):
-        self.avg_fit = None
-        self.isValid = False
-        self.radius_m = 1e3
-        self.line_base_pos_mm = 3750./2
-        self.allx = None  
-        self.ally = None
-        self.broken_frames = 0
-        self.name = "Unnamed"
         
     def is_valid(self):
         return self.isValid
