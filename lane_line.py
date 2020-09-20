@@ -32,6 +32,8 @@ class LaneLine():
         self.lane_h_center_mm = (self.img_width // 2) * self.xm_per_pix * 1000.
         self.broken_frames = 0
         self.curve = np.uint8([[0,0]])
+        print("Inititalized Lane with center point at {}, full road {}, (half lane at {})"
+              .format(self.lane_h_center_mm, self.img_width * self.xm_per_pix * 1000., self.line_base_pos_mm))
 
     def update(self, poly, x_pixels=None, y_pixels=None):
         if x_pixels is not None:
@@ -40,29 +42,25 @@ class LaneLine():
             self.y_pixels = y_pixels
         if self.avg_fit is None:
             self.avg_fit = poly
-        else:
-            # Improvement of a naive averaging: if the diff is huge,
-            # do a more conservative averaging. 
-            # TODO: probably, not every member is equally important.
-            diff = np.absolute(self.avg_fit - poly)
-            weighted_diff = np.absolute(diff[0]) + np.absolute(diff[1]) + np.absolute(diff[2])
-            #weighted_diff = np.absolute(diff[0]) + np.absolute(diff[1]) + np.absolute(diff[2])
-            #print(" {} weighted_diff : ".format(self.name), weighted_diff)
-            if weighted_diff > self.max_valid_diff:
-                self.broken_frames += 1
-                if self.broken_frames > self.max_broken_frames // 2:
-                    self.isValid = False
-                if self.broken_frames > self.max_broken_frames:
-                    print("ALARM! LANE {} BROKEN!".format(self.name))
-                    self.avg_fit = (self.avg_fit * (self.avg_depth - 1) + poly) / self.avg_depth
-            else:
+        diff = np.absolute(self.avg_fit - poly)
+        weighted_diff = np.absolute(diff[0]) + np.absolute(diff[1]) + np.absolute(diff[2])
+        if weighted_diff > self.max_valid_diff:
+            self.broken_frames += 1
+            if self.broken_frames > self.max_broken_frames // 2:
+                self.isValid = False
+            if self.broken_frames > self.max_broken_frames:
+                print("ALARM! LANE {} BROKEN!".format(self.name))
                 self.avg_fit = (self.avg_fit * (self.avg_depth - 1) + poly) / self.avg_depth
-                self.isValid = True
-                self.broken_frames = 0
-            new_curvature = self.curvature(self.avg_fit, self.img_height * self.ym_per_pix)
-            self.radius_m = (self.radius_m * (self.avg_depth - 1) + new_curvature) / self.avg_depth
-            self.line_base_pos_mm = self.evaluate_poly2(
-                self.avg_fit, self.img_height * self.ym_per_pix)*1000 - self.lane_h_center_mm
+        else:
+            self.avg_fit = (self.avg_fit * (self.avg_depth - 1) + poly) / self.avg_depth
+            self.isValid = True
+            self.broken_frames = 0
+        # Compute curvature
+        new_curvature = self.curvature(self.avg_fit, self.img_height * self.ym_per_pix)
+        self.radius_m = (self.radius_m * (self.avg_depth - 1) + new_curvature) / self.avg_depth
+        # Compute lane center offset
+        self.line_base_pos_mm = self.evaluate_poly2(
+            self.avg_fit, self.img_height * self.ym_per_pix) * 1000 - self.lane_h_center_mm
             
     def set_curve(self, curve):
         """ Expects a numpy array of points (x,y)"""
