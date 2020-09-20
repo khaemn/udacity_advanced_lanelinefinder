@@ -74,28 +74,11 @@ class CameraCalibrator:
     
 
 class Undistorter():
-    def __init__(self, mtx, dist, shape):
+    def __init__(self, mtx, dist):
         self.mtx = mtx
         self.dist = dist
-        self.own_shape = shape
-        self.newcameramtx = None
-        self.last_shape = None
-        
-    def crop(self, img):
-        x,y,w,h = self.roi
-        return img[y:y+h, x:x+w]
         
     def undistort(self, img):
-        """ Expects a grayscale image as input """
-        img_shape = img.shape
-        # Re-initing output ROI and transform matrix each time we
-        # get an image with a different shape.
-        if self.last_shape != img_shape:
-            self.last_shape = img_shape
-            h, w = self.last_shape[:2]
-            #self.newcameramtx, self.roi = cv2.getOptimalNewCameraMatrix(
-            #    self.mtx, self.dist, (w,h), 1, (w,h))
-        undistorted = cv2.undistort(img, self.mtx, self.dist)#, None, self.newcameramtx)
-        #cropped = self.crop(undistorted)
+        undistorted = cv2.undistort(img, self.mtx, self.dist)
         return undistorted
 
