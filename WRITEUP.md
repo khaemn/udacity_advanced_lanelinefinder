@@ -117,6 +117,7 @@ The resulting mix (original on red, undistorted on blue channel:
 As it can be easlily seen on the mixed road image, the camera distortions almost are not affecting the region where the lane lines are situated, so for this particular camera even a "raw", distorted image, would be good enough to find lanes and compute their curvature. However, as for a general approach, the undistortion is necessary by default.
 
 #### 2. Describe how (and identify where in your code) you performed a perspective transform and provide an example of a transformed image.
+
 # TODO: DESCRIBE CODE!
 
 I have performed tons of experiments tryng to find the best approach to reliably detect lane pixels, and then I tried to do the perspective transform **first**, before the contrast improvement and other thresholdings. This actually helped me a lot to deal with the "challenging" video.
@@ -156,9 +157,9 @@ I verified that my perspective transform was working as expected by drawing the 
 
 Camera image ("road")        | Warped image ("from_above")
 :---------------------------:|:-------------------------:
-![distorted][illustration006]|![undistorted][illustration007]
-![distorted][illustration008]|![undistorted][illustration009]
-![distorted][illustration010]|![undistorted][illustration011]
+![road_view][illustration006]|![from_above][illustration007]
+![road_view][illustration008]|![from_above][illustration009]
+![road_view][illustration010]|![from_above][illustration011]
 
 #### 3. Describe how (and identify where in your code) you used color transforms, gradients or other methods to create a thresholded binary image.  Provide an example of a binary image result.
 
@@ -172,10 +173,96 @@ So I have developed a preprocessing pipeline, that uses:
 * Contrast improvement
 * Vertical and close to vertical lines' pixels amplification and thresholding
 
-![alt text][image3]
+Also, most of the processing is being done on "downsampled" images. I have adjusted the downsampling (e.g. shrinking) rate to a values (about 4..8 depending on the stage) that increases processing speed without significant accuracy lost.
+
+Road view                    | Warped image ("from_above")
+:---------------------------:|:-------------------------:
+![road_view][illustration008]|![from_above][illustration009]
 
 
-![alt text][image4]
+Image in HLS (displayed in BGR) | "Yellow" channel (50% red + 50% green) (downsampled)
+:------------------------------:|:-------------------------:
+![road_view][illustration012]   |![from_above][illustration015]
+
+Saturation channel (ch 2 from HLS) | Luminosity channel (ch 1 from HLS)
+:------------------------------:|:-------------------------:
+![road_view][illustration014]   |![from_above][illustration013]
+
+On some road images the contrast in saturation and yellow channels is poor, and the lane marking is not bright enough (as opposed to the pavement); but anyway while we have a pavement, the lane marking would always be brighter, and, probably it would be among the brightest objects in the image.
+So I use this approach to improve contrast:
+
+1. Find the most common pixel brightness (major tone) - presuming the lane marking is brighter
+```python
+    # take histogram
+    hist = np.histogram(img)
+    # find the histogram peak == the most common brightness
+    major_tone = hist[1][np.argmax(hist[0])]
+```
+Note: the histogram is actually being taken from each N'th pixel, where N > 1, to increase the processing speed.
+
+2. Subtract this value from all pixels - this way the most part of pavement becomes black
+The result of major tone subtraction (I call it "balanced") is below:
+
+Yellow              | Yellow balanced 
+:------------------:|:------------------:
+![][illustration015]|![][illustration016]
+
+3. After balancing the image, the lane markings (highly probable) are the brightest parts of the image, so if we square all brightnesses, the distance between dim and bright part would significantly increase. Then the result of squaring is thresholded and normalized back to range 0..255.
+
+```python
+# Assume 'luminosity' is a 0..255 np.uint8 array, containing the luminosity channel
+luminosity_highcontrast = np.minimum(np.power(luminosity.astype(np.uint16), 2), 2500))
+
+```
+After normalization back to 0..255 range, the brighter parts become much brighter, while the darker ones become black. I call this result a "highcontrast", here are all the "luminosity" channel processing stages for comparison:
+
+Luminosity as-is    | Luminosity balanced| Luminosity highcontrast
+:------------------:|:------------------:|:----------------------:
+![][illustration013]|![][illustration018]|![][illustration019]
+
+Meanwhile, the balanced yellow and the 'raw' saturation channel are summed. I have chosen this approach because the yellow lane marking might have a good brightness in both yellow channel and saturation channel, or in only one of them; but it is always much dimmer in luminosity channel (and of course is almost invisible in the blue channel).
+
+Balanced yellow     | Saturation as-is   | 50% yellow + 50% saturation
+:------------------:|:------------------:|:----------------------:
+![][illustration016]|![][illustration014]|![][illustration017]
+
+The Yellow+Saturation sum then is being made high-contrast, as described above:
+
+ 50% yellow + 50% saturation | yell + sat balanced | yell + sat highcontrast
+:---------------------------:|:-------------------:|:----------------------:
+![][illustration017]         |![][illustration020] |![][illustration021]  
+
+After that we have the best possible contrast for a yellow lane marking in the `yell_sat_highcontrast`, and the best possible contrast for a white lane marking in `luminosity_highcontrast`, so I take the max value from both images to make an image where both lane markings are very bright, and the rest is dark:
+
+ yell + sat highcontrast| Luminosity highcontrast | Maximum of both
+:----------------------:|:-----------------------:|:-----------------:
+![][illustration021]    |![][illustration019]     |![][illustration022]
+
+This image is again processed to highcontrast to increase signa/noise ratio for furter processing:
+
+![Highcontrast lane markings][illustration024]
+
+Now it is time to use the geometrical information to separathe just a bright object from a lane marking. Assuming we have already warped the image, the lane markings would be always close to vertical, with a small angle difference from 90 degrees. Also, the lane markings (especially after several rounds of highcontrasting) would have a very sharp edges, e.g. the brightness gradient on them would have a high absolute magnitude.
+
+To compute and threshold the angles, first take Sobel 'x' and 'y' component filters:
+
+ Sobel filter, `x`  | Sobel filter, `y`
+:------------------:|:------------------:
+![][illustration025]|![][illustration026]
+
+Then compute the angle and the gradient magnitude:
+
+ Probable angle     | `x+y` gradient magnitude
+:------------------:|:------------------:
+![][illustration027]|![][illustration028]
+
+Then we take only a pixels, that are both in some angle range *and* have a gradient magnitude above a threshold. That is the final result of the preprocessing pipeline:
+
+![][illustration029]
+
+
+# TODO: BELOW! ____________________
+
 
 #### 4. Describe how (and identify where in your code) you identified lane-line pixels and fit their positions with a polynomial?
 
