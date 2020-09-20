@@ -53,11 +53,12 @@ The goals / steps of this project are the following:
 [illustration025]: ./writeup_images/0025_abs_sobelx_kernel_3.jpg                       
 [illustration026]: ./writeup_images/0026_abs_sobely_kernel_3.jpg                       
 [illustration027]: ./writeup_images/0027_gradient_angles.jpg                           
-[illustration028]: ./writeup_images/0028_gradient_magnitude.jpg                        
-[illustration029]: ./writeup_images/0029_angle_magnitude_combined.jpg                  
-[illustration030]: ./writeup_images/0030_detected_lane_pixels.jpg                      
-[illustration031]: ./writeup_images/0031_demo_lanes_detected.jpg                       
-[illustration032]: ./writeup_images/0032_pipeline_result.jpg
+[illustration028]: ./writeup_images/0028_gradient_magnitude.jpg
+[illustration029]: ./writeup_images/0029_angle_magnitude_combined.jpg
+[illustration030]: ./writeup_images/0030_found_lane_pixels.jpg
+[illustration031]: ./writeup_images/0031_taken_lane_pixels.jpg
+[illustration032]: ./writeup_images/0032_demo_lanes_detected.jpg                       
+[illustration033]: ./writeup_images/0033_pipeline_result.jpg
 
 
 
@@ -259,5 +260,50 @@ Then we take only a pixels, that are both in some angle range *and* have a gradi
 ![][illustration029]
 
 
-# TODO: BELOW! ____________________
+#### 4. Describe how (and identify where in your code) you identified lane-line pixels and fit their positions with a polynomial?
 
+The pipeline uses 2 approaches for detecting lane pixels: a slower one, that is based on a sliding window and histogramming; and a faster one, which only takes all white pixels in the vicinity of a polynome curve. Of course, the second method is only applicable when the lane is already detected.
+
+The sliding window method is implemented in the `find_lane_pixels()` function. It uses 9 steps per 720 pixels of an image height and the window total width is 200 pixels.
+
+The input image (white), found lane curves (yellow and cyan), their respective pixels and the searching windows (green) are plotted below:
+
+![found_lane_pixels][illustration030]
+
+The second method just makes N windows along the known lane curves. The curves are being passed as a parameter to the `take_lane_pixels()` function. Then any non-zero pixel from the search (e.g. covered by rectangular windows) area is taken as new lane pixels. The lane curves, (yellow and cyan), their respective pixels and the searching area (grey) are plotted below:
+
+![taken_lane_pixels][illustration031]
+
+Based on the lane pixels, 2 curve polynomes are being fit in the `fit_polynomial()` function. In the images above the thin yellow and cyan line already represents the curves. Validation of the found lane curves might be done via plotting them (with a corresponding "unwarping" transform, made by `Bird.to_road()` method) to the road image:
+
+![demo_lanes_detected][illustration032]
+
+
+#### 5. Describe how (and identify where in your code) you calculated the radius of curvature of the lane and the position of the vehicle with respect to center.
+
+# TODO: CODE DESCRIPTION
+
+I did this in lines # through # in my code in `my_other_file.py`
+
+#### 6. Provide an example image of your result plotted back down onto the road such that the lane area is identified clearly.
+
+I implemented this step in lines # through # in my code in `yet_another_file.py` in the function `map_lane()`.  Here is an example of my result on a test image:
+
+
+![pipeline_result][illustration033]
+
+---
+
+### Pipeline (video)
+
+#### 1. Provide a link to your final video output.  Your pipeline should perform reasonably well on the entire project video (wobbly lines are ok but no catastrophic failures that would cause the car to drive off the road!).
+
+Here's a [link to my video result](./project_video.mp4)
+
+---
+
+### Discussion
+
+#### 1. Briefly discuss any problems / issues you faced in your implementation of this project.  Where will your pipeline likely fail?  What could you do to make it more robust?
+
+Here I'll talk about the approach I took, what techniques I used, what worked and why, where the pipeline might fail and how I might improve it if I were going to pursue this project further.  
