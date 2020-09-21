@@ -32,8 +32,6 @@ class LaneLine():
         self.lane_h_center_mm = (self.img_width // 2) * self.xm_per_pix * 1000.
         self.broken_frames = 0
         self.curve = np.uint8([[0,0]])
-        print("Inititalized Lane with center point at {}, full road {}, (half lane at {})"
-              .format(self.lane_h_center_mm, self.img_width * self.xm_per_pix * 1000., self.line_base_pos_mm))
 
     def update(self, poly, x_pixels=None, y_pixels=None):
         if x_pixels is not None:

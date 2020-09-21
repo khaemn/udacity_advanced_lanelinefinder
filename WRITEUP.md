@@ -192,10 +192,10 @@ So I use this approach to improve contrast:
 
 1. Find the most common pixel brightness (major tone) - presuming the lane marking is brighter
 ```python
-    # take histogram
-    hist = np.histogram(img)
-    # find the histogram peak == the most common brightness
-    major_tone = hist[1][np.argmax(hist[0])]
+# take histogram
+hist = np.histogram(img)
+# find the histogram peak == the most common brightness
+major_tone = hist[1][np.argmax(hist[0])]
 ```
 Note: the histogram is actually being taken from each N'th pixel, where N > 1, to increase the processing speed.
 
@@ -283,7 +283,31 @@ Based on the lane pixels, 2 curve polynomes are being fit in the `fit_polynomial
 
 # TODO: CODE DESCRIPTION
 
-I did this in lines # through # in my code in `my_other_file.py`
+To track the lane lines, I have implemented a `LaneLine` class in `lane_line.py`.
+When contructing, this class must be parametrized with a horizontal pixels-per-meter ratio `xm_per_pix` and a vertical one (`ym_per_pix`), as they depend on a particular ROI of the "bird", e.g. on the warp trasnformation parameters. Also there is an important `avg_depth` construction parameter, that sets the averaging coefficient in the simple averaging functions:
+
+``` python3
+# Presume we have some value, named `old_value` and equal to, say, 10
+# and a new_value, equal to 50
+avg_depth = 64
+averaged = (old_value * (avg_depth - 1) + new_value) / avg_depth
+# Now the 'averaged' is 10,625 - e.g. the glitch is filtered.
+# After this, we need to save the existing data as an old one for next iteration.
+old_value = averaged
+```
+I use this averaging approach in all cases whenever the averaging is required in this project. The formula above has a useful properties: 
+1. If the values we work with are integers, all the math can be done in integer domain (which is fast)
+2. If the averaging coefficient is a power of 2, the division and multiplication can be replaced with a combinantion of only biary shifts and addition/subtraction, which is much faster.
+In the scope of this particular project I did not reimplement the averager as described above, however in a C++ production code for such a task I would definitely use this approach (and I have tested it a lot during my career, it is especially cool in embedded devices with slow FP math).
+
+The class holds the the approximation polynome (`.avg_fit`), the curvature radius at the bottom (e.g. at the closest point to the car) (`.radius_m`), and the offset of a virtual lane center from the real screen center (and center of the car, by definition) (`.line_base_pos_mm`). For retrieving these values there are `get_fit()`, `get_radius()` and `get_horizontal_offset()` getters respectively.
+
+There must be 2 instances of the class, for the left and right lane.
+
+The `LaneLine` class computes all the necessary points when the `update()` method is called, this method takes an array of 3 polynomial coefficients. To prevent corrupting the data when a broken frame frame arrives, there are two mechanisms:
+1. An absolute difference between the old and new coefficients is calculated. If this diff is above some predefined threshold, the new data is ignored, and the broken frame counter is incremented; the threshold is an experimentally adjusted value and might differ from video to video.
+2. If the diff is below the allowed threshold, the lane polynome (`.avg_fit`) is being updated, using averaging with the existing data, to smooth any glitches.
+
 
 #### 6. Provide an example image of your result plotted back down onto the road such that the lane area is identified clearly.
 
