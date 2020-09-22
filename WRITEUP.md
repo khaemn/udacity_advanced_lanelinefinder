@@ -316,7 +316,7 @@ The `LaneLine` class computes all the necessary points when the `update()` metho
 
 #### 6. Provide an example image of your result plotted back down onto the road such that the lane area is identified clearly.
 
-I implemented this step in lines # through # in my code in `yet_another_file.py` in the function `map_lane()`.  Here is an example of my result on a test image:
+The resulting pipeline is contained in the `process_frame()` function. It takes an image from camera, performs contrast preprocessing and geometry search and stores a high-contrast bird-eye image of the (possible) lane into an averaging buffer. This buffer helps to preserve the most valuable information about the pixels, that move vertically from frame to frame and filter out small pixel noise. Then, basing on this high-contrast image, the pipeline fits 2 curves to represent left and right lane borders. After finding bordes, the pipeline plots the lane shape (polygon) back to the initial image, and also plots information about lane curvature radius and car offset.
 
 
 ![pipeline_result][illustration033]
