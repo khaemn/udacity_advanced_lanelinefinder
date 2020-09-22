@@ -117,11 +117,12 @@ As it can be easlily seen on the mixed road image, the camera distortions almost
 
 #### 2. Describe how (and identify where in your code) you performed a perspective transform and provide an example of a transformed image.
 
-# TODO: DESCRIBE CODE!
-
 I have performed tons of experiments tryng to find the best approach to reliably detect lane pixels, and then I tried to do the perspective transform **first**, before the contrast improvement and other thresholdings. This actually helped me a lot to deal with the "challenging" video.
 
-To perform the perspective transforms (to the "bird-eye" view and back from it to the "road" view) I have  implemented a separate class `Bird` (that has its eye, kek) in `bird.py`.
+To perform the perspective transforms (to the "bird-eye" view and back from it to the "road" view) I have  implemented a separate class `Bird` (that has its eye, kek) in `bird.py`. It has two useful methods:
+
+1. `.from_above(...)` that takes an image from camera and warps it to a bird-eye view
+2. `.to_road(...)` that takse a bird-eye view and transforms it back to a camera view
 
 While working on videos, it turned out that the "regular" and "challenge" videos have a bit different ROIs - probably, because of different camera position. So I have declared a `REGULAR_CAMERA_ROI` and a `CHALLENGE_CAMERA_ROI` arrays to use them separately.
 
@@ -162,15 +163,21 @@ Camera image ("road")        | Warped image ("from_above")
 
 #### 3. Describe how (and identify where in your code) you used color transforms, gradients or other methods to create a thresholded binary image.  Provide an example of a binary image result.
 
-# TODO: DESCRIBE CODE!
-
 I have tried many variations of thresholding an RGB or HLS image, but without additional efforts it is almost impossible to tell the lane line apart from the background on the "challenging" frames with low contrast or pavement color change.
 
-So I have developed a preprocessing pipeline, that uses:
-* "Yellow" channel (50% of Red + 50% of Green)
+So I have developed a contrast processing pipeline, that uses:
+
+* "Yellow" channel (Red + Green - Blue)
 * Saturation and luminosity channels
 * Contrast improvement
+    
+    (All above is performed with `adaptive_vertical_contrast()` function)
+
+
 * Vertical and close to vertical lines' pixels amplification and thresholding
+    
+    
+    (Performed with `amplify_vert_lane_pixels()` function)
 
 Also, most of the processing is being done on "downsampled" images. I have adjusted the downsampling (e.g. shrinking) rate to a values (about 4..8 depending on the stage) that increases processing speed without significant accuracy lost.
 
@@ -179,7 +186,7 @@ Road view                    | Warped image ("from_above")
 ![road_view][illustration008]|![from_above][illustration009]
 
 
-Image in HLS (displayed in BGR) | "Yellow" channel (50% red + 50% green) (downsampled)
+Image in HLS (displayed in BGR) | "Yellow" channel (R + G - B) (downsampled)
 :------------------------------:|:-------------------------:
 ![road_view][illustration012]   |![from_above][illustration015]
 
@@ -281,8 +288,6 @@ Based on the lane pixels, 2 curve polynomes are being fit in the `fit_polynomial
 
 #### 5. Describe how (and identify where in your code) you calculated the radius of curvature of the lane and the position of the vehicle with respect to center.
 
-# TODO: CODE DESCRIPTION
-
 To track the lane lines, I have implemented a `LaneLine` class in `lane_line.py`.
 When contructing, this class must be parametrized with a horizontal pixels-per-meter ratio `xm_per_pix` and a vertical one (`ym_per_pix`), as they depend on a particular ROI of the "bird", e.g. on the warp trasnformation parameters. Also there is an important `avg_depth` construction parameter, that sets the averaging coefficient in the simple averaging functions:
 
@@ -322,7 +327,17 @@ I implemented this step in lines # through # in my code in `yet_another_file.py`
 
 #### 1. Provide a link to your final video output.  Your pipeline should perform reasonably well on the entire project video (wobbly lines are ok but no catastrophic failures that would cause the car to drive off the road!).
 
-Here's a [link to my video result](./project_video.mp4)
+Here's a [link to regular video result](./test_video_output/submit_test_video.mp4)
+(Alternative link on YouTube https://youtu.be/_g7uUsdl48s)
+
+Conclusion: on the regular video the pipeline works fine.
+
+Here's a [link to challenge video result](./test_video_output/submit_challenge_test_video.mp4)
+(Alternative link on YouTube https://youtu.be/5d3rigBNc3k)
+
+Conclusion: even on the "challenge" video there is no totall loss of lane markings recognition. The lane curvature radius somtimes is detected incorrectly _high_, but I would say that is not a problem, as the big curvature radius means a straight lane; and a misunderstood straight lane (when in reality it is a curve with some big radius) would not be a problem for a car, if the radius is measured correctly in the next several frames.
+
+*Note:* I did not manage to found any working solution for the "harder challenge". I am pretty sure that the search window pixel finding would not work on that video (due to small curvature radius of the lane) and requires a significant change of the lane pixel finding algorithm. I believe it is still possible, but requires a shitload of time for developing and testing such algorithm, which is by far out of scope of this project.
 
 ---
 
@@ -330,4 +345,11 @@ Here's a [link to my video result](./project_video.mp4)
 
 #### 1. Briefly discuss any problems / issues you faced in your implementation of this project.  Where will your pipeline likely fail?  What could you do to make it more robust?
 
-Here I'll talk about the approach I took, what techniques I used, what worked and why, where the pipeline might fail and how I might improve it if I were going to pursue this project further.  
+The most significant issue of the pipeline is the hardcoded thresholds and ROIs, that are now adjusted to 2 particular videos. In case of another road pavement colours and/or lighting (such as morning/evening sun) I presume it would not work without re-adjusting all these hardcoded numbers, and that's a ton of work.
+
+Also, the contrast processing part (`adaptive_vertical_contrast()`) might be an overkill for the "regular" video, but I decided to have one pipeline for both regular and challenge ones. The contrast processing function might be simpler (and faster), but I have no idea how to improve it, except try-and-fail approach. Unfortunately, I have not found any description or hints in the lectures about how to implement a corresponding processing for "challenge" and "harder challenge" videos. After I submit this project, I am going to search for the solution among existing repostiories - I believe there _should_ be a solution somewhere ;)
+
+Overall, the code in the notebook is not a production one, with next issues:
+1. Global variables and objects usage.
+2. The "left" and "right" lane objects would be better managed by another object to compose a pipeline.
+3. The `ImagePrinter` class usage is ugly, but it was the most convenient way to store all the pictures I need from the various pipeline stages. I would remove it from any practical solution for sure. 
